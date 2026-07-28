@@ -20,7 +20,7 @@ type windowsNotifier struct {
 	registry   *notificationEventRegistry
 	shortcuts  *notificationShortcutResolver
 	handler    *windowsNotificationActionHandler
-	files      *windowsFileActionService
+	files      fileActionService
 	push       toastPusher
 	closeOnce  sync.Once
 	closeErr   error
