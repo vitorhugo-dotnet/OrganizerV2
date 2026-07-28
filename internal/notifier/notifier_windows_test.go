@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"git.sr.ht/~jackmordaunt/go-toast/v2"
 	"github.com/vitorhugo-java/organizerv2/internal/config"
 )
 
@@ -46,7 +45,7 @@ func newWindowsNotifierFixture(t *testing.T, push toastPusher) (*windowsNotifier
 	}, files
 }
 
-func eventIDFromNotification(t *testing.T, notification *toast.Notification) string {
+func eventIDFromNotification(t *testing.T, notification *windowsToast) string {
 	t.Helper()
 	for _, action := range notification.Actions {
 		_, eventID, err := parseNotificationAction(action.Arguments)
@@ -61,7 +60,7 @@ func eventIDFromNotification(t *testing.T, notification *toast.Notification) str
 func TestWindowsNotifierNotifyReturnsBeforeBlockedPush(t *testing.T) {
 	started := make(chan struct{})
 	release := make(chan struct{})
-	n, _ := newWindowsNotifierFixture(t, func(*toast.Notification) error {
+	n, _ := newWindowsNotifierFixture(t, func(*windowsToast) error {
 		close(started)
 		<-release
 		return nil
@@ -87,8 +86,8 @@ func TestWindowsNotifierNotifyReturnsBeforeBlockedPush(t *testing.T) {
 }
 
 func TestWindowsNotifierRemovesEventWhenPushFails(t *testing.T) {
-	var notification *toast.Notification
-	n, _ := newWindowsNotifierFixture(t, func(value *toast.Notification) error {
+	var notification *windowsToast
+	n, _ := newWindowsNotifierFixture(t, func(value *windowsToast) error {
 		notification = value
 		return errors.New("push failed")
 	})
@@ -104,8 +103,8 @@ func TestWindowsNotifierRemovesEventWhenPushFails(t *testing.T) {
 }
 
 func TestWindowsNotifierLeavesSuccessfulEventClaimable(t *testing.T) {
-	var notification *toast.Notification
-	n, _ := newWindowsNotifierFixture(t, func(value *toast.Notification) error {
+	var notification *windowsToast
+	n, _ := newWindowsNotifierFixture(t, func(value *windowsToast) error {
 		notification = value
 		return nil
 	})
@@ -120,7 +119,7 @@ func TestWindowsNotifierLeavesSuccessfulEventClaimable(t *testing.T) {
 }
 
 func TestWindowsNotifierDoesNotCopyPathDuringDelivery(t *testing.T) {
-	n, files := newWindowsNotifierFixture(t, func(*toast.Notification) error { return nil })
+	n, files := newWindowsNotifierFixture(t, func(*windowsToast) error { return nil })
 	n.deliver(FileEvent{Destination: filepath.Join(t.TempDir(), "file.txt"), Category: "Documents"})
 	calls, _, _ := files.snapshot()
 	if len(calls) != 0 {
@@ -130,8 +129,8 @@ func TestWindowsNotifierDoesNotCopyPathDuringDelivery(t *testing.T) {
 
 func TestWindowsNotifierConcurrentDeliveriesKeepDistinctEvents(t *testing.T) {
 	var mu sync.Mutex
-	var notifications []*toast.Notification
-	n, _ := newWindowsNotifierFixture(t, func(value *toast.Notification) error {
+	var notifications []*windowsToast
+	n, _ := newWindowsNotifierFixture(t, func(value *windowsToast) error {
 		mu.Lock()
 		notifications = append(notifications, value)
 		mu.Unlock()
