@@ -53,10 +53,13 @@ func TestBuildWindowsToastMatchesLegacyPythonLayout(t *testing.T) {
 	if input.ID != destinationInputID || input.Title != "Move file to" || input.Placeholder != "" {
 		t.Fatalf("unexpected destination input: %#v", input)
 	}
-	if len(input.Selections) != 3 {
-		t.Fatalf("expected current category plus two shortcuts, got %#v", input.Selections)
+	if notification.DefaultInput != currentDestinationSelectionID {
+		t.Fatalf("default input = %q, want %q", notification.DefaultInput, currentDestinationSelectionID)
 	}
-	if input.Selections[0].ID != "current" || input.Selections[0].Content != "Script" {
+	if len(input.Selections) != 3 {
+		t.Fatalf("expected current directory plus two shortcuts, got %#v", input.Selections)
+	}
+	if input.Selections[0].ID != "current" || input.Selections[0].Content != "Script (current)" {
 		t.Fatalf("current destination must be the default selection: %#v", input.Selections[0])
 	}
 	for i, shortcut := range resolver.All() {
