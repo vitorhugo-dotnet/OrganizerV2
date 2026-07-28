@@ -49,6 +49,10 @@ func newPlatform(cfg config.NotificationConfig) Notifier {
 		files:     files,
 		logf:      log.Printf,
 	}
+	if err := initializeWindowsActivation(executable); err != nil {
+		log.Printf("[notifier] activation initialization failed: %v", err)
+	}
+	installWindowsActivationHandler(handler)
 
 	return &windowsNotifier{
 		cfg:        cfg,
@@ -93,6 +97,7 @@ func (n *windowsNotifier) deliver(event FileEvent) {
 
 func (n *windowsNotifier) Close() error {
 	n.closeOnce.Do(func() {
+		clearWindowsActivationHandler(n.handler)
 		if n.registry != nil {
 			n.closeErr = n.registry.Close()
 		}
