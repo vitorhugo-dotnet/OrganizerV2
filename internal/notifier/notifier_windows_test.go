@@ -46,6 +46,18 @@ func newWindowsNotifierFixture(t *testing.T, push toastPusher) (*windowsNotifier
 	}, files
 }
 
+func eventIDFromNotification(t *testing.T, notification *toast.Notification) string {
+	t.Helper()
+	for _, action := range notification.Actions {
+		_, eventID, err := parseNotificationAction(action.Arguments)
+		if err == nil {
+			return eventID
+		}
+	}
+	t.Fatal("notification has no parseable action payload")
+	return ""
+}
+
 func TestWindowsNotifierNotifyReturnsBeforeBlockedPush(t *testing.T) {
 	started := make(chan struct{})
 	release := make(chan struct{})
@@ -85,10 +97,7 @@ func TestWindowsNotifierRemovesEventWhenPushFails(t *testing.T) {
 	if notification == nil {
 		t.Fatal("notification was not pushed")
 	}
-	_, eventID, err := parseNotificationAction(notification.ActivationArguments)
-	if err != nil {
-		t.Fatal(err)
-	}
+	eventID := eventIDFromNotification(t, notification)
 	if _, ok := n.registry.Claim(eventID); ok {
 		t.Fatal("failed Push left a claimable event")
 	}
@@ -103,10 +112,7 @@ func TestWindowsNotifierLeavesSuccessfulEventClaimable(t *testing.T) {
 
 	path := filepath.Join(t.TempDir(), "file.txt")
 	n.deliver(FileEvent{Destination: path, Category: "Documents"})
-	_, eventID, err := parseNotificationAction(notification.ActivationArguments)
-	if err != nil {
-		t.Fatal(err)
-	}
+	eventID := eventIDFromNotification(t, notification)
 	event, ok := n.registry.Claim(eventID)
 	if !ok || event.CurrentPath != path {
 		t.Fatalf("unexpected registered event: %#v, %v", event, ok)
@@ -153,10 +159,7 @@ func TestWindowsNotifierConcurrentDeliveriesKeepDistinctEvents(t *testing.T) {
 	seenIDs := map[string]bool{}
 	seenPaths := map[string]bool{}
 	for _, notification := range notifications {
-		_, eventID, err := parseNotificationAction(notification.ActivationArguments)
-		if err != nil {
-			t.Fatal(err)
-		}
+		eventID := eventIDFromNotification(t, notification)
 		if seenIDs[eventID] {
 			t.Fatalf("duplicate event ID %q", eventID)
 		}

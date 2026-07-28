@@ -15,7 +15,9 @@ const (
 	actionMoveTo       notificationAction = "move_to"
 	actionCopyTo       notificationAction = "copy_to"
 	actionConfirm      notificationAction = "confirm"
-	destinationInputID                    = "destination"
+
+	destinationInputID                   = "destination"
+	currentDestinationSelectionID        = "current"
 )
 
 type inputValue struct {

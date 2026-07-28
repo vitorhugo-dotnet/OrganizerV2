@@ -21,10 +21,7 @@ func TestWindowsNotifierNormalizesRelativeDestinationBeforeRegister(t *testing.T
 	if notification == nil {
 		t.Fatal("relative destination was not delivered")
 	}
-	_, eventID, err := parseNotificationAction(notification.ActivationArguments)
-	if err != nil {
-		t.Fatal(err)
-	}
+	eventID := eventIDFromNotification(t, notification)
 	event, ok := n.registry.Claim(eventID)
 	if !ok {
 		t.Fatal("relative destination event was not registered")

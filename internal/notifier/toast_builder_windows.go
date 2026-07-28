@@ -13,31 +13,28 @@ import (
 func buildWindowsToast(event notificationEvent, cfg config.NotificationConfig, shortcuts []resolvedShortcut, activationExe string) toast.Notification {
 	notification := toast.Notification{
 		AppID:         windowsToastAppID,
-		Title:         "OrganizerV2",
-		Body:          fmt.Sprintf("%s → %s/", filepath.Base(event.CurrentPath), event.Category),
+		Title:         fmt.Sprintf("File %s moved to %s.", filepath.Base(event.CurrentPath), event.Category),
+		Body:          "Organizer",
 		ActivationExe: activationExe,
 	}
 
-	if cfg.Actions.OpenFile {
-		notification.ActivationType = toast.Foreground
-		notification.ActivationArguments = encodeNotificationAction(actionOpenFile, event.ID)
+	selections := []toast.InputSelection{
+		{ID: currentDestinationSelectionID, Content: event.Category},
 	}
-
-	hasDestinationActions := len(shortcuts) > 0 && (cfg.Actions.MoveTo || cfg.Actions.CopyTo)
-	if hasDestinationActions {
-		selections := make([]toast.InputSelection, 0, len(shortcuts))
+	if cfg.Actions.MoveTo {
 		for _, shortcut := range shortcuts {
 			selections = append(selections, toast.InputSelection{
 				ID:      shortcut.ID,
 				Content: shortcut.Name,
 			})
 		}
-		notification.Inputs = append(notification.Inputs, toast.Input{
-			ID:          destinationInputID,
-			Title:       "Redirect to",
-			Placeholder: "Choose destination",
-			Selections:  selections,
-		})
+	}
+	notification.Inputs = []toast.Input{
+		{
+			ID:         destinationInputID,
+			Title:      "Move file to",
+			Selections: selections,
+		},
 	}
 
 	appendAction := func(enabled bool, content string, action notificationAction, inputID string) {
@@ -52,10 +49,8 @@ func buildWindowsToast(event notificationEvent, cfg config.NotificationConfig, s
 		})
 	}
 
-	appendAction(cfg.Actions.OpenLocation, "Open Folder", actionOpenLocation, "")
-	appendAction(cfg.Actions.CopyPath, "Copy Path", actionCopyPath, "")
-	appendAction(hasDestinationActions && cfg.Actions.MoveTo, "Move To", actionMoveTo, destinationInputID)
-	appendAction(hasDestinationActions && cfg.Actions.CopyTo, "Copy To", actionCopyTo, destinationInputID)
+	appendAction(cfg.Actions.OpenLocation, "Open Location", actionOpenLocation, destinationInputID)
+	appendAction(cfg.Actions.OpenFile, "Open File", actionOpenFile, destinationInputID)
 	appendAction(cfg.Actions.Confirm, "Confirm", actionConfirm, "")
 
 	return notification
