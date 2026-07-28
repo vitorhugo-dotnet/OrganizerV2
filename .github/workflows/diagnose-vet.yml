@@ -1,0 +1,29 @@
+name: Diagnose Vet
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  vet:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone pull request branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.head_ref }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          git clone --depth 1 --branch "$HEAD_REF" "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git" repo
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: repo/go.mod
+          cache: false
+
+      - name: Run vet
+        working-directory: repo
+        run: go vet ./...
