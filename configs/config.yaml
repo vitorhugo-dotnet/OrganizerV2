@@ -65,20 +65,21 @@ fallback_category: Others
 notifications:
   enabled: true
   actions:
-    # Clicking the notification body opens the organized file.
+    # Shows the Open File button in the Windows toast.
     open_file: true
-    # Opens Explorer with the organized file selected.
+    # Shows Open Location, which selects the organized file in Explorer.
     open_location: true
-    # Copies the final absolute path only after clicking Copy Path.
+    # Retained for platform compatibility; not shown in the Python-style Windows toast.
     copy_path: true
-    # Moves the file to the selected configured shortcut.
+    # Adds configured shortcuts to the Windows "Move file to" selection.
+    # Open File/Open Location move the file first when another destination is selected.
     move_to: true
-    # Copies the file to the selected configured shortcut.
+    # Retained for callback compatibility; no separate Copy To button is displayed.
     copy_to: true
-    # Acknowledges the notification without changing the file.
+    # Shows Confirm, which dismisses the event without changing the file.
     confirm: true
 
-  # Windows-only named destinations shown in the native "Redirect to" select.
+  # Windows-only named destinations shown after the current category in "Move file to".
   # Paths are normalized to absolute paths. Arbitrary destinations are rejected.
   shortcuts:
     - name: Desktop
