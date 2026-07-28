@@ -5,13 +5,11 @@ package notifier
 import (
 	"path/filepath"
 	"testing"
-
-	"git.sr.ht/~jackmordaunt/go-toast/v2"
 )
 
 func TestWindowsNotifierNormalizesRelativeDestinationBeforeRegister(t *testing.T) {
-	var notification *toast.Notification
-	n, _ := newWindowsNotifierFixture(t, func(value *toast.Notification) error {
+	var notification *windowsToast
+	n, _ := newWindowsNotifierFixture(t, func(value *windowsToast) error {
 		notification = value
 		return nil
 	})
