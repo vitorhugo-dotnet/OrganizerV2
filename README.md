@@ -108,13 +108,13 @@ See [`configs/config.yaml`](configs/config.yaml) for a fully annotated example.
 | `ignore_extensions` | Extensions that are never moved (partial downloads, temp files). |
 | `fallback_category` | Destination for files with unrecognised extensions (default: `Others`). |
 | `notifications.enabled` | Enable or disable desktop notifications. |
-| `notifications.actions.open_file` | Make the Windows toast body open the organized file. |
-| `notifications.actions.open_location` | Show **Open Folder**, which selects the organized file in Explorer. |
-| `notifications.actions.copy_path` | Show **Copy Path**. The clipboard changes only after the button is clicked. |
-| `notifications.actions.move_to` | Show **Move To** when at least one valid shortcut exists. |
-| `notifications.actions.copy_to` | Show **Copy To** when at least one valid shortcut exists. |
+| `notifications.actions.open_file` | Show **Open File** in the Windows toast. |
+| `notifications.actions.open_location` | Show **Open Location**, which selects the organized file in Explorer. |
+| `notifications.actions.copy_path` | Retained for platform compatibility; it is not shown in the Python-compatible Windows toast. |
+| `notifications.actions.move_to` | Add configured shortcuts to **Move file to**. Open actions move the file first when another destination is selected. |
+| `notifications.actions.copy_to` | Retained for callback compatibility; no separate **Copy To** button is displayed. |
 | `notifications.actions.confirm` | Show **Confirm**, which consumes the notification without changing the file. |
-| `notifications.shortcuts` | Windows-only named destinations used by the **Redirect to** selection. Paths are normalized and arbitrary callback paths are rejected. |
+| `notifications.shortcuts` | Windows-only named destinations listed after the current category in **Move file to**. Paths are normalized and arbitrary callback paths are rejected. |
 
 ---
 
@@ -159,18 +159,17 @@ The **Open Location** action opens the folder via `xdg-open`. Linux notification
 
 ### Windows
 
-Each organized file produces a native Windows toast. Windows permits at most five action buttons, so **Open File** is assigned to the notification body.
+Each organized file produces a native Windows toast using the same interaction model as the original Python version.
 
 | Interaction | Description |
 |---|---|
-| Click the notification body | Opens the organized file with its default application. |
-| **Open Folder** | Opens Explorer with the organized file selected. |
-| **Copy Path** | Copies the file's final absolute path to the clipboard. |
-| **Move To** | Moves the file to the destination selected in **Redirect to**. |
-| **Copy To** | Copies the file to the destination selected in **Redirect to**. |
-| **Confirm** | Acknowledges the notification without changing the file. |
+| **Move file to** | Select the current category or a configured shortcut. The current category is selected first. |
+| **Open Location** | If another destination is selected, moves the file there first, then opens Explorer with the resulting file selected. |
+| **Open File** | If another destination is selected, moves the file there first, then opens the resulting file with its default application. |
+| **Confirm** | Acknowledges the notification without changing or opening the file. |
+| Click the notification body | No action. Explicit buttons are required. |
 
-The **Redirect to** selection and the **Move To**/**Copy To** buttons appear only when at least one valid `notifications.shortcuts` entry is configured. Shortcut names are visible in the toast, but actions carry only opaque IDs. File paths and destination directories are resolved from the running process's in-memory event registry and normalized configuration, never from callback text.
+The toast intentionally exposes only **Open Location**, **Open File**, and **Confirm**. Shortcut names are visible in **Move file to**, but callbacks carry only opaque IDs. File paths and destination directories are resolved from the running process's in-memory event registry and normalized configuration, never from callback text.
 
 Transfer collisions are resolved as `file (2).ext`, `file (3).ext`, and so on. Existing files are never overwritten.
 
