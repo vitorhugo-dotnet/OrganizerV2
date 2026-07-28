@@ -66,7 +66,7 @@ func buildWindowsToast(event notificationEvent, cfg config.NotificationConfig, s
 
 	appendAction(cfg.Actions.OpenLocation, "Open Location", actionOpenLocation, destinationInputID)
 	appendAction(cfg.Actions.OpenFile, "Open File", actionOpenFile, destinationInputID)
-	appendAction(cfg.Actions.Confirm, "Confirm", actionConfirm, "")
+	appendAction(cfg.Actions.Confirm, "Confirm", actionConfirm, destinationInputID)
 
 	return notification
 }
