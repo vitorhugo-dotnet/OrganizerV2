@@ -73,7 +73,12 @@ func (n *windowsNotifier) Notify(event FileEvent) error {
 }
 
 func (n *windowsNotifier) deliver(event FileEvent) {
-	registered, err := n.registry.Register(event.Destination, event.Category)
+	destination, err := filepath.Abs(event.Destination)
+	if err != nil {
+		log.Printf("[notifier] destination normalization failed: %v", err)
+		return
+	}
+	registered, err := n.registry.Register(destination, event.Category)
 	if err != nil {
 		log.Printf("[notifier] event registration failed: %v", err)
 		return
