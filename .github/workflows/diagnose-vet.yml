@@ -8,35 +8,18 @@ permissions:
   contents: read
 
 jobs:
-  vet:
-    runs-on: ubuntu-latest
+  vet-windows:
+    runs-on: windows-latest
     steps:
-      - name: Clone pull request branch
+      - name: Clone pull request branch and run vet
+        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_REF: ${{ github.head_ref }}
           REPOSITORY: ${{ github.repository }}
-        run: git clone --depth 1 --branch "$HEAD_REF" "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git" repo
-
-      - name: Regenerate module files
-        working-directory: repo
-        env:
           GOTOOLCHAIN: auto
         run: |
-          rm -f go.sum
-          go mod tidy
-
-      - name: Upload regenerated module files
-        uses: actions/upload-artifact@v4
-        with:
-          name: regenerated-go-modules
-          path: |
-            repo/go.mod
-            repo/go.sum
-          if-no-files-found: error
-
-      - name: Run vet with regenerated checksums
-        working-directory: repo
-        env:
-          GOTOOLCHAIN: auto
-        run: go vet ./...
+          git clone --depth 1 --branch $env:HEAD_REF "https://x-access-token:$env:GH_TOKEN@github.com/$env:REPOSITORY.git" repo
+          Set-Location repo
+          go version
+          go vet ./...
