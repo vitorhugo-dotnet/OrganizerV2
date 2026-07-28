@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,18 +25,28 @@ type Rule struct {
 	Extensions []string `yaml:"extensions" mapstructure:"extensions"`
 }
 
-// NotificationActions controls which action buttons appear on notifications.
+// Shortcut is a named, validated destination available to Windows toast actions.
+type Shortcut struct {
+	Name string `yaml:"name" mapstructure:"name"`
+	Path string `yaml:"path" mapstructure:"path"`
+	ID   string `yaml:"-" mapstructure:"-"`
+}
+
+// NotificationActions controls which actions appear on notifications.
 type NotificationActions struct {
 	OpenFile     bool `yaml:"open_file"     mapstructure:"open_file"`
 	OpenLocation bool `yaml:"open_location" mapstructure:"open_location"`
 	CopyPath     bool `yaml:"copy_path"     mapstructure:"copy_path"`
+	MoveTo       bool `yaml:"move_to"       mapstructure:"move_to"`
+	CopyTo       bool `yaml:"copy_to"       mapstructure:"copy_to"`
 	Confirm      bool `yaml:"confirm"       mapstructure:"confirm"`
 }
 
 // NotificationConfig controls notification behaviour.
 type NotificationConfig struct {
-	Enabled bool                `yaml:"enabled" mapstructure:"enabled"`
-	Actions NotificationActions `yaml:"actions" mapstructure:"actions"`
+	Enabled   bool                `yaml:"enabled" mapstructure:"enabled"`
+	Actions   NotificationActions `yaml:"actions" mapstructure:"actions"`
+	Shortcuts []Shortcut          `yaml:"shortcuts" mapstructure:"shortcuts"`
 }
 
 // Config is the root configuration structure.
@@ -51,7 +63,7 @@ type Config struct {
 
 // Default returns a sensible default configuration.
 func Default() *Config {
-	return &Config{
+	cfg := &Config{
 		WatchPaths: []WatchPath{
 			{Path: "~/Downloads", TargetBase: "~/Downloads"},
 		},
@@ -80,10 +92,26 @@ func Default() *Config {
 				OpenFile:     true,
 				OpenLocation: true,
 				CopyPath:     true,
+				MoveTo:       true,
+				CopyTo:       true,
 				Confirm:      true,
+			},
+			Shortcuts: []Shortcut{
+				{Name: "Desktop", Path: "~/Desktop"},
+				{Name: "Documents", Path: "~/Documents"},
 			},
 		},
 	}
+
+	// Defaults cannot return an error. If the home directory cannot be resolved,
+	// omit shortcuts rather than exposing unvalidated destinations.
+	shortcuts, err := normalizeShortcuts(cfg.Notifications.Shortcuts)
+	if err != nil {
+		cfg.Notifications.Shortcuts = nil
+	} else {
+		cfg.Notifications.Shortcuts = shortcuts
+	}
+	return cfg
 }
 
 // Load reads configuration from the given YAML file path. If the file does not
@@ -135,7 +163,7 @@ func Save(cfg *Config, path string) error {
 	return enc.Encode(cfg)
 }
 
-// normalize lowercases all extensions and expands ~ in paths.
+// normalize lowercases extensions and expands configured paths.
 func normalize(cfg *Config) error {
 	for i, r := range cfg.Rules {
 		for j, ext := range r.Extensions {
@@ -157,7 +185,56 @@ func normalize(cfg *Config) error {
 		}
 		cfg.WatchPaths[i].TargetBase = tb
 	}
+	shortcuts, err := normalizeShortcuts(cfg.Notifications.Shortcuts)
+	if err != nil {
+		return err
+	}
+	cfg.Notifications.Shortcuts = shortcuts
 	return nil
+}
+
+func normalizeShortcuts(shortcuts []Shortcut) ([]Shortcut, error) {
+	seenNames := make(map[string]struct{}, len(shortcuts))
+	seenPaths := make(map[string]struct{}, len(shortcuts))
+	result := make([]Shortcut, 0, len(shortcuts))
+
+	for _, shortcut := range shortcuts {
+		name := strings.TrimSpace(shortcut.Name)
+		rawPath := strings.TrimSpace(shortcut.Path)
+		if name == "" || rawPath == "" {
+			continue
+		}
+
+		expanded, err := expandHome(rawPath)
+		if err != nil {
+			return nil, fmt.Errorf("expanding notification shortcut %q: %w", name, err)
+		}
+		absolute, err := filepath.Abs(expanded)
+		if err != nil {
+			return nil, fmt.Errorf("resolving notification shortcut %q: %w", name, err)
+		}
+		absolute = filepath.Clean(absolute)
+		nameKey := strings.ToLower(name)
+		pathKey := shortcutPathIdentity(absolute)
+
+		if _, exists := seenNames[nameKey]; exists {
+			continue
+		}
+		if _, exists := seenPaths[pathKey]; exists {
+			continue
+		}
+
+		sum := sha256.Sum256([]byte("organizerv2-shortcut-v1\x00" + pathKey))
+		shortcut = Shortcut{
+			Name: name,
+			Path: absolute,
+			ID:   hex.EncodeToString(sum[:]),
+		}
+		seenNames[nameKey] = struct{}{}
+		seenPaths[pathKey] = struct{}{}
+		result = append(result, shortcut)
+	}
+	return result, nil
 }
 
 func expandHome(path string) (string, error) {
