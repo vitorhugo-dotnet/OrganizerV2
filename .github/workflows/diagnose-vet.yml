@@ -11,19 +11,14 @@ jobs:
   vet:
     runs-on: ubuntu-latest
     steps:
-      - name: Clone pull request branch
+      - name: Clone pull request branch and run vet
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_REF: ${{ github.head_ref }}
           REPOSITORY: ${{ github.repository }}
+          GOTOOLCHAIN: auto
         run: |
           git clone --depth 1 --branch "$HEAD_REF" "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git" repo
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: repo/go.mod
-          cache: false
-
-      - name: Run vet
-        working-directory: repo
-        run: go vet ./...
+          cd repo
+          go version
+          go vet ./...
