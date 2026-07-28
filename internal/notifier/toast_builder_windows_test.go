@@ -3,6 +3,7 @@
 package notifier
 
 import (
+	"encoding/xml"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -81,6 +82,69 @@ func TestBuildWindowsToastRespectsVisibleActionConfiguration(t *testing.T) {
 				t.Fatalf("current destination is not first: %#v", notification.Inputs[0].Selections)
 			}
 		})
+	}
+}
+
+func TestBuildWindowsToastPreselectsRealCurrentDirectoryAndKeepsConfiguredDestinations(t *testing.T) {
+	dir := t.TempDir()
+	currentDir := filepath.Join(dir, "Moved & Sorted")
+	event := notificationEvent{
+		ID:          strings.Repeat("c", 64),
+		CurrentPath: filepath.Join(currentDir, "report.xlsx"),
+		Category:    "Spreadsheets",
+	}
+	shortcuts := []resolvedShortcut{
+		{
+			ID:   strings.Repeat("3", 64),
+			Name: "Duplicate current directory",
+			Path: currentDir,
+		},
+		{
+			ID:   strings.Repeat("4", 64),
+			Name: "Desktop & Work",
+			Path: filepath.Join(dir, "Desktop"),
+		},
+	}
+	cfg := config.NotificationConfig{
+		Enabled: true,
+		Actions: config.NotificationActions{
+			OpenFile:     true,
+			OpenLocation: true,
+			MoveTo:       true,
+			Confirm:      true,
+		},
+	}
+
+	notification := buildWindowsToast(event, cfg, shortcuts, `C:\organizer.exe`)
+	if notification.DefaultInput != currentDestinationSelectionID {
+		t.Fatalf("default input = %q, want %q", notification.DefaultInput, currentDestinationSelectionID)
+	}
+	if len(notification.Inputs) != 1 {
+		t.Fatalf("inputs = %#v", notification.Inputs)
+	}
+	selections := notification.Inputs[0].Selections
+	if len(selections) != 2 {
+		t.Fatalf("selections = %#v, want current directory plus one configured destination", selections)
+	}
+	if selections[0].ID != currentDestinationSelectionID || selections[0].Content != "Moved & Sorted (current)" {
+		t.Fatalf("unexpected current directory selection: %#v", selections[0])
+	}
+	if selections[1].ID != shortcuts[1].ID || selections[1].Content != shortcuts[1].Name {
+		t.Fatalf("unexpected configured destination: %#v", selections[1])
+	}
+
+	payload, err := notification.XML()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(payload, `defaultInput="current"`) {
+		t.Fatalf("toast XML does not preselect the current directory: %s", payload)
+	}
+	var document struct {
+		XMLName xml.Name `xml:"toast"`
+	}
+	if err := xml.Unmarshal([]byte(payload), &document); err != nil {
+		t.Fatalf("toast XML is invalid: %v\n%s", err, payload)
 	}
 }
 
