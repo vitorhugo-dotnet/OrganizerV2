@@ -54,15 +54,29 @@ cmd/organizer/
 ### Asset requirements
 
 - `organizer.svg` is the editable source asset.
-- `organizer.png` is a square, transparent or intentionally backed 512 x 512 raster export for README and future tooling.
+- `organizer.png` is a square 512 x 512 raster export for README and future tooling.
 - `organizer.ico` contains multiple image sizes suitable for Windows, including at least 16, 24, 32, 48, 64, 128, and 256 pixels.
+- The SVG and PNG must render clearly on both light and dark GitHub themes.
 - Small-size exports must be visually inspected so the checklist remains recognizable rather than collapsing into decorative soup.
 
 ## Windows resource generation
 
 Use `github.com/tc-hib/go-winres` pinned to `v0.3.3`.
 
-`go-winres make` will read `cmd/organizer/winres/winres.json` and generate a Windows-specific object file named with the target suffix, for example:
+The tool is installed reproducibly with:
+
+```bash
+go install github.com/tc-hib/go-winres@v0.3.3
+```
+
+`cmd/organizer/winres/winres.json` will reference `../../assets/branding/organizer.ico` as the first application icon resource. Resource generation runs with `cmd/organizer` as the working directory:
+
+```bash
+cd cmd/organizer
+go-winres make
+```
+
+This produces:
 
 ```text
 cmd/organizer/rsrc_windows_amd64.syso
@@ -77,8 +91,8 @@ Generated `.syso` files are build artifacts and must not be committed.
 ```text
 SVG source
   -> PNG and multi-resolution ICO stored in the repository
-  -> go-winres make
-  -> rsrc_windows_amd64.syso generated
+  -> run go-winres make from cmd/organizer
+  -> rsrc_windows_amd64.syso generated beside the main package
   -> go build ./cmd/organizer
   -> Windows executable containing the application icon
 ```
@@ -87,9 +101,9 @@ SVG source
 
 Both `.github/workflows/ci.yml` and `.github/workflows/release.yml` currently call `go build` directly. Their Windows jobs will be updated to:
 
-1. Install the pinned `go-winres` version.
-2. Run resource generation before `go build`.
-3. Verify that the expected `.syso` file exists.
+1. Install `github.com/tc-hib/go-winres@v0.3.3`.
+2. Run `go-winres make` with `cmd/organizer` as the working directory.
+3. Verify that `cmd/organizer/rsrc_windows_amd64.syso` exists.
 4. Build the Windows AMD64 executable normally.
 5. Upload or publish the resulting executable using the existing artifact names.
 
@@ -97,23 +111,25 @@ Linux jobs must not install or execute `go-winres` and must retain their existin
 
 ## Local developer workflow
 
-A documented command or small script will generate Windows resources locally before a Windows build. The command must use the pinned tool version rather than `@latest` so local and CI output do not drift.
+The README will use the same pinned installation and generation commands as CI. No second custom generator will be introduced unless implementation proves the two-command workflow insufficient.
 
 The README will document:
 
 - where the source assets live;
+- how to install the pinned resource tool;
 - how to regenerate the Windows resource;
 - that the generated `.syso` is ignored;
 - how to build the branded Windows executable.
 
 ## README presentation
 
-The README will display `assets/branding/organizer.svg` near the project title using repository-relative markup. The image must remain useful in both light and dark GitHub themes.
+The README will display `assets/branding/organizer.svg` near the project title using repository-relative markup. The asset must remain useful in both light and dark GitHub themes.
 
 ## Error handling
 
 - Resource generation failure must fail the Windows build immediately.
 - Missing or invalid ICO input must not silently produce an unbranded release.
+- The workflow must explicitly check for the generated `.syso` before building.
 - Linux build failures must not be introduced by Windows-only tooling or files.
 - No runtime fallback is required because icon embedding is a compile-time concern.
 
@@ -126,8 +142,8 @@ The README will display `assets/branding/organizer.svg` near the project title u
 - Linux AMD64 build succeeds.
 - Linux ARM64 build succeeds.
 - Windows AMD64 resource generation succeeds.
+- `cmd/organizer/rsrc_windows_amd64.syso` exists before the Windows build.
 - Windows AMD64 build succeeds after resource generation.
-- The expected `.syso` file exists before the Windows build.
 
 ### Manual Windows verification
 
@@ -152,8 +168,6 @@ cmd/organizer/winres/winres.json
 README.md
 THIRD_PARTY_NOTICES.md
 ```
-
-A helper script or `go:generate` directive may be added only if it reduces duplication without making the build harder to understand.
 
 ## Acceptance criteria
 
