@@ -114,7 +114,7 @@ See [`configs/config.yaml`](configs/config.yaml) for a fully annotated example.
 | `notifications.actions.move_to` | Add configured shortcuts to **Move file to**. Open actions move the file first when another destination is selected. |
 | `notifications.actions.copy_to` | Retained for callback compatibility; no separate **Copy To** button is displayed. |
 | `notifications.actions.confirm` | Show **Confirm**, which consumes the notification without changing the file. |
-| `notifications.shortcuts` | Windows-only named destinations listed after the current category in **Move file to**. Paths are normalized and arbitrary callback paths are rejected. |
+| `notifications.shortcuts` | Windows-only named destinations listed after the file's actual current folder in **Move file to**. Paths are normalized and arbitrary callback paths are rejected. |
 
 ---
 
@@ -163,7 +163,7 @@ Each organized file produces a native Windows toast using the same interaction m
 
 | Interaction | Description |
 |---|---|
-| **Move file to** | Select the current category or a configured shortcut. The current category is selected first. |
+| **Move file to** | The actual folder containing the organized file is selected by default. Configured shortcuts are listed after it. |
 | **Open Location** | If another destination is selected, moves the file there first, then opens Explorer with the resulting file selected. |
 | **Open File** | If another destination is selected, moves the file there first, then opens the resulting file with its default application. |
 | **Confirm** | Acknowledges the notification without changing or opening the file. |
