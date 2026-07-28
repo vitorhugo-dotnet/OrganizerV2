@@ -76,6 +76,18 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Generate Windows resources
+        if: matrix.goos == 'windows'
+        shell: bash
+        run: |
+          pushd cmd/organizer
+          go run github.com/tc-hib/go-winres@v0.3.3 make \
+            --arch "${{ matrix.goarch }}" \
+            --in winres/winres.json \
+            --out rsrc
+          test -s "rsrc_windows_${{ matrix.goarch }}.syso"
+          popd
+
       - name: Build
         shell: bash
         env:

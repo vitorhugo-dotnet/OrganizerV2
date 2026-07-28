@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/branding/organizer.svg" alt="OrganizerV2 checklist logo" width="128" height="128">
+</p>
+
 # OrganizerV2
 
 A clean, cross-platform file organizer written in Go. Drop files into a watched folder and they are automatically sorted into category subfolders by extension.
@@ -32,6 +36,38 @@ git clone https://github.com/vitorhugo-java/organizerv2.git
 cd organizerv2
 go build -o organizer ./cmd/organizer
 ```
+
+#### Build the branded Windows executable
+
+The Windows icon resource is generated at build time from the committed multi-resolution ICO. The generated `.syso` file is ignored by Git.
+
+PowerShell:
+
+```powershell
+New-Item -ItemType Directory -Force dist | Out-Null
+Push-Location cmd/organizer
+go run github.com/tc-hib/go-winres@v0.3.3 make --arch amd64 --in winres/winres.json --out rsrc
+Pop-Location
+$env:GOOS = "windows"
+$env:GOARCH = "amd64"
+$env:CGO_ENABLED = "0"
+go build -trimpath -ldflags="-s -w" -o dist/organizer-windows-amd64.exe ./cmd/organizer
+```
+
+Bash:
+
+```bash
+mkdir -p dist
+(
+  cd cmd/organizer
+  go run github.com/tc-hib/go-winres@v0.3.3 make --arch amd64 --in winres/winres.json --out rsrc
+)
+GOOS=windows GOARCH=amd64 CGO_ENABLED=0 \
+  go build -trimpath -ldflags="-s -w" \
+  -o dist/organizer-windows-amd64.exe ./cmd/organizer
+```
+
+Branding assets are stored under [`assets/branding`](assets/branding). The editable source is `organizer.svg`; `organizer.png` is intended for documentation and future tooling; `organizer.ico` is embedded in Windows builds.
 
 Requires **Go 1.22+**.
 
