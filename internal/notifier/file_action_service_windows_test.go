@@ -80,7 +80,7 @@ func TestWindowsFileActionServiceCopyToResolvesDuplicateAndKeepsSource(t *testin
 	}
 }
 
-func TestWindowsFileActionServiceOpenLocationUsesSingleExplorerArgument(t *testing.T) {
+func TestWindowsFileActionServiceOpenLocationQuotesExplorerSelectionPath(t *testing.T) {
 	path := `C:\Users\Hugo\A & B\arquivo (1) # final.txt`
 	var gotName string
 	var gotArgs []string
@@ -97,8 +97,9 @@ func TestWindowsFileActionServiceOpenLocationUsesSingleExplorerArgument(t *testi
 	if gotName != "explorer.exe" {
 		t.Fatalf("process = %q", gotName)
 	}
-	if len(gotArgs) != 1 || gotArgs[0] != "/select,"+path {
-		t.Fatalf("unexpected arguments: %#v", gotArgs)
+	wantArgument := `/select,"` + path + `"`
+	if len(gotArgs) != 1 || gotArgs[0] != wantArgument {
+		t.Fatalf("unexpected arguments: %#v, want %q", gotArgs, wantArgument)
 	}
 }
 
