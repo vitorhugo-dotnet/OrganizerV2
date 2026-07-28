@@ -16,7 +16,7 @@ Supports **Windows** and **Linux** from a single codebase.
 - **Extension-based classification** into configurable category folders
 - **Duplicate handling** — `file (2).ext`, `file (3).ext`, …
 - **Ignore incomplete downloads** — `.tmp`, `.crdownload`, `.!qB`, and more
-- **Desktop notifications** — toast on Linux/Windows with action buttons
+- **Desktop notifications** — toast on Linux/Windows with interactive Windows actions
 - **One-shot scan** mode with `--dry-run` preview
 - **YAML configuration** — no hardcoded paths
 - **CI/CD** — GitHub Actions builds and publishes release binaries
@@ -69,7 +69,7 @@ GOOS=windows GOARCH=amd64 CGO_ENABLED=0 \
 
 Branding assets are stored under [`assets/branding`](assets/branding). The editable source is `organizer.svg`; `organizer.png` is intended for documentation and future tooling; `organizer.ico` is embedded in Windows builds.
 
-Requires **Go 1.22+**.
+Requires **Go 1.25+**.
 
 ---
 
@@ -107,8 +107,14 @@ See [`configs/config.yaml`](configs/config.yaml) for a fully annotated example.
 | `rules` | Extension → category mappings. |
 | `ignore_extensions` | Extensions that are never moved (partial downloads, temp files). |
 | `fallback_category` | Destination for files with unrecognised extensions (default: `Others`). |
-| `notifications.enabled` | Enable/disable desktop notifications. |
-| `notifications.actions` | Toggle individual notification buttons (`open_file`, `open_location`, `copy_path`, `confirm`). |
+| `notifications.enabled` | Enable or disable desktop notifications. |
+| `notifications.actions.open_file` | Make the Windows toast body open the organized file. |
+| `notifications.actions.open_location` | Show **Open Folder**, which selects the organized file in Explorer. |
+| `notifications.actions.copy_path` | Show **Copy Path**. The clipboard changes only after the button is clicked. |
+| `notifications.actions.move_to` | Show **Move To** when at least one valid shortcut exists. |
+| `notifications.actions.copy_to` | Show **Copy To** when at least one valid shortcut exists. |
+| `notifications.actions.confirm` | Show **Confirm**, which consumes the notification without changing the file. |
+| `notifications.shortcuts` | Windows-only named destinations used by the **Redirect to** selection. Paths are normalized and arbitrary callback paths are rejected. |
 
 ---
 
@@ -149,21 +155,26 @@ sudo apt install wl-clipboard   # Wayland
 sudo apt install xclip           # X11
 ```
 
-The **Open Location** action opens the folder via `xdg-open`.
+The **Open Location** action opens the folder via `xdg-open`. Linux notification behavior is otherwise unchanged.
 
 ### Windows
 
-Each file move triggers a native Windows toast notification with action buttons:
+Each organized file produces a native Windows toast. Windows permits at most five action buttons, so **Open File** is assigned to the notification body.
 
-| Button | Description |
+| Interaction | Description |
 |---|---|
-| **Open File** | Opens the moved file with its default application. |
-| **Open Folder** | Opens the destination folder in Explorer. |
-| **OK** | Dismisses the toast without any additional action. |
+| Click the notification body | Opens the organized file with its default application. |
+| **Open Folder** | Opens Explorer with the organized file selected. |
+| **Copy Path** | Copies the file's final absolute path to the clipboard. |
+| **Move To** | Moves the file to the destination selected in **Redirect to**. |
+| **Copy To** | Copies the file to the destination selected in **Redirect to**. |
+| **Confirm** | Acknowledges the notification without changing the file. |
 
-The **Copy Path** action writes the absolute destination path to the Windows clipboard immediately on notification delivery (no button click required).
+The **Redirect to** selection and the **Move To**/**Copy To** buttons appear only when at least one valid `notifications.shortcuts` entry is configured. Shortcut names are visible in the toast, but actions carry only opaque IDs. File paths and destination directories are resolved from the running process's in-memory event registry and normalized configuration, never from callback text.
 
-Each button can be individually enabled or disabled via `notifications.actions` in the config file.
+Transfer collisions are resolved as `file (2).ext`, `file (3).ext`, and so on. Existing files are never overwritten.
+
+The watcher must remain running for actions associated with the current session. Toasts created before an application restart no longer have a matching in-memory event and are ignored safely. If the library falls back to PowerShell, the notification may still be displayed, but interactive callbacks are unavailable.
 
 ---
 

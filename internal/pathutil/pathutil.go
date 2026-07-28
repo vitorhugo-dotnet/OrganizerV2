@@ -41,8 +41,8 @@ func EnsureDir(dir string) error {
 }
 
 // CopyFile copies the bytes of src to a newly created dst.
-// The parent directory of dst must already exist.
-// If dst already exists it is truncated.
+// The parent directory of dst must already exist. Existing destinations are
+// never overwritten.
 func CopyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
@@ -50,7 +50,11 @@ func CopyFile(src, dst string) error {
 	}
 	defer in.Close()
 
-	out, err := os.Create(dst)
+	info, err := in.Stat()
+	if err != nil {
+		return fmt.Errorf("stat source: %w", err)
+	}
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, info.Mode().Perm())
 	if err != nil {
 		return fmt.Errorf("create dest: %w", err)
 	}
