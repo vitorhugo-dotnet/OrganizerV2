@@ -8,11 +8,10 @@ import (
 	"path/filepath"
 	"sync"
 
-	"git.sr.ht/~jackmordaunt/go-toast/v2"
 	"github.com/vitorhugo-java/organizerv2/internal/config"
 )
 
-type toastPusher func(*toast.Notification) error
+type toastPusher func(*windowsToast) error
 
 type windowsNotifier struct {
 	cfg        config.NotificationConfig
@@ -61,7 +60,7 @@ func newPlatform(cfg config.NotificationConfig) Notifier {
 		shortcuts:  &resolver,
 		handler:    handler,
 		files:      files,
-		push: func(notification *toast.Notification) error {
+		push: func(notification *windowsToast) error {
 			return notification.Push()
 		},
 	}
