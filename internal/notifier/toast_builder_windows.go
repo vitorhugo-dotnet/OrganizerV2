@@ -115,7 +115,7 @@ func (n windowsToast) Push() error {
 	if err != nil {
 		return err
 	}
-	return wintoast.Push(payload)
+	return wintoast.Push(n.AppID, payload)
 }
 
 func encodeToastVisual(encoder *xml.Encoder, title, body string) error {
