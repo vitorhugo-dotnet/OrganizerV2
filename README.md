@@ -113,7 +113,7 @@ See [`configs/config.yaml`](configs/config.yaml) for a fully annotated example.
 | `notifications.actions.copy_path` | Retained for platform compatibility; it is not shown in the Python-compatible Windows toast. |
 | `notifications.actions.move_to` | Add configured shortcuts to **Move file to**. Open actions move the file first when another destination is selected. |
 | `notifications.actions.copy_to` | Retained for callback compatibility; no separate **Copy To** button is displayed. |
-| `notifications.actions.confirm` | Show **Confirm**, which consumes the notification without changing the file. |
+| `notifications.actions.confirm` | Show **Confirm**, which moves the file to the selected destination when it changed, then consumes the notification. |
 | `notifications.shortcuts` | Windows-only named destinations listed after the file's actual current folder in **Move file to**. Paths are normalized and arbitrary callback paths are rejected. |
 
 ---
@@ -166,7 +166,7 @@ Each organized file produces a native Windows toast using the same interaction m
 | **Move file to** | The actual folder containing the organized file is selected by default. Configured shortcuts are listed after it. |
 | **Open Location** | If another destination is selected, moves the file there first, then opens Explorer with the resulting file selected. |
 | **Open File** | If another destination is selected, moves the file there first, then opens the resulting file with its default application. |
-| **Confirm** | Acknowledges the notification without changing or opening the file. |
+| **Confirm** | If another destination is selected, moves the file there and acknowledges the notification without opening it. |
 | Click the notification body | No action. Explicit buttons are required. |
 
 The toast intentionally exposes only **Open Location**, **Open File**, and **Confirm**. Shortcut names are visible in **Move file to**, but callbacks carry only opaque IDs. File paths and destination directories are resolved from the running process's in-memory event registry and normalized configuration, never from callback text.

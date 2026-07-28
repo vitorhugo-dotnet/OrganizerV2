@@ -77,7 +77,7 @@ func (s *windowsFileActionService) OpenLocation(path string) error {
 	if s.startProcess == nil {
 		return errors.New("process starter is unavailable")
 	}
-	return s.startProcess("explorer.exe", "/select,"+path)
+	return s.startProcess("explorer.exe", `/select,"`+path+`"`)
 }
 
 func (s *windowsFileActionService) CopyPath(path string) error {

@@ -78,7 +78,9 @@ func (h *windowsNotificationActionHandler) Handle(args string, data []inputValue
 		}
 		_, actionErr = h.files.CopyTo(currentPath, destination)
 	case actionConfirm:
-		return
+		if destination != "" && !sameDestinationDirectory(currentPath, destination) {
+			_, actionErr = h.files.MoveTo(currentPath, destination)
+		}
 	}
 	if actionErr != nil {
 		h.log("[notifier] activation %s failed: %v", action, actionErr)
@@ -87,7 +89,7 @@ func (h *windowsNotificationActionHandler) Handle(args string, data []inputValue
 
 func (h *windowsNotificationActionHandler) resolveDestination(action notificationAction, data []inputValue) (string, bool) {
 	requiresDestination := action == actionMoveTo || action == actionCopyTo
-	usesDestination := requiresDestination || action == actionOpenFile || action == actionOpenLocation
+	usesDestination := requiresDestination || action == actionOpenFile || action == actionOpenLocation || action == actionConfirm
 	if !usesDestination {
 		return "", true
 	}

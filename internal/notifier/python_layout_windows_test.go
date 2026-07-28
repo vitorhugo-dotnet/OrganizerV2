@@ -78,12 +78,9 @@ func TestBuildWindowsToastMatchesLegacyPythonLayout(t *testing.T) {
 		if action.Content != want || action.Type != toast.Foreground {
 			t.Fatalf("action %d = %#v, want %q foreground", i, action, want)
 		}
-	}
-	if notification.Actions[0].InputID != destinationInputID || notification.Actions[1].InputID != destinationInputID {
-		t.Fatalf("open actions must consume the destination selection: %#v", notification.Actions)
-	}
-	if notification.Actions[2].InputID != "" {
-		t.Fatalf("confirm must not depend on destination input: %#v", notification.Actions[2])
+		if action.InputID != destinationInputID {
+			t.Fatalf("action %q must consume the destination selection: %#v", want, action)
+		}
 	}
 }
 

@@ -147,6 +147,28 @@ func TestWindowsNotificationActionHandlerRoutesEveryAction(t *testing.T) {
 	}
 }
 
+func TestWindowsNotificationConfirmMovesToSelectedDestination(t *testing.T) {
+	fake := &fakeFileActionService{}
+	handler, registry, shortcut, _ := newActionHandlerFixture(t, fake)
+	event, err := registry.Register(filepath.Join(t.TempDir(), "Documents", "report.xlsx"), "Documents")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handler.Handle(
+		encodeNotificationAction(actionConfirm, event.ID),
+		[]inputValue{{Key: destinationInputID, Value: shortcut.ID}},
+	)
+
+	calls, paths, destinations := fake.snapshot()
+	if len(calls) != 1 || calls[0] != "move_to" {
+		t.Fatalf("confirm did not move the selected file: %#v", calls)
+	}
+	if paths[0] != event.CurrentPath || destinations[0] != shortcut.Path {
+		t.Fatalf("unexpected confirm move: paths=%#v destinations=%#v", paths, destinations)
+	}
+}
+
 func TestWindowsNotificationActionHandlerRejectsInvalidInputsBeforeClaim(t *testing.T) {
 	fake := &fakeFileActionService{}
 	handler, registry, _, _ := newActionHandlerFixture(t, fake)
