@@ -1,6 +1,7 @@
 package pathutil
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -102,6 +103,30 @@ func TestCopyFile(t *testing.T) {
 	// Source must still exist.
 	if _, err := os.Stat(src); err != nil {
 		t.Errorf("source should still exist after CopyFile: %v", err)
+	}
+}
+
+func TestCopyFileDoesNotOverwriteExistingDestination(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.txt")
+	dst := filepath.Join(dir, "dst.txt")
+	if err := os.WriteFile(src, []byte("new"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dst, []byte("existing"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	err := CopyFile(src, dst)
+	if !errors.Is(err, os.ErrExist) {
+		t.Fatalf("expected os.ErrExist, got %v", err)
+	}
+	got, readErr := os.ReadFile(dst)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(got) != "existing" {
+		t.Fatalf("destination was overwritten: %q", got)
 	}
 }
 
