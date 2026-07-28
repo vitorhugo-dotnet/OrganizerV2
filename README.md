@@ -80,6 +80,7 @@ Requires **Go 1.22+**.
 organizer config init
 
 # Edit ~/.config/organizerv2/config.yaml to set your watch paths, then:
+
 # Start the watcher daemon
 organizer start
 
