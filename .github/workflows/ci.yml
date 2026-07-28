@@ -31,7 +31,21 @@ jobs:
         run: go mod download
 
       - name: Vet
-        run: go vet ./...
+        shell: bash
+        run: |
+          set +e
+          go vet ./... > vet.log 2>&1
+          status=$?
+          cat vet.log
+          exit "$status"
+
+      - name: Upload vet diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vet-${{ matrix.os }}
+          path: vet.log
+          if-no-files-found: error
 
       - name: Test
         shell: bash
