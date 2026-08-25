@@ -49,16 +49,47 @@ type NotificationConfig struct {
 	Shortcuts []Shortcut          `yaml:"shortcuts" mapstructure:"shortcuts"`
 }
 
+// StabilityConfig controls how long a file must be quiet before the watcher
+// considers the write finished and moves it. Zero or negative values are
+// replaced by the defaults during normalization.
+type StabilityConfig struct {
+	// DebounceMs is how long to wait after the last filesystem event before
+	// looking at a file at all.
+	DebounceMs int `yaml:"debounce_ms"  mapstructure:"debounce_ms"`
+	// WindowMs is the interval between the two samples compared to decide the
+	// file stopped growing. It is also the delay between readiness retries.
+	WindowMs int `yaml:"window_ms"    mapstructure:"window_ms"`
+	// MinAgeMs is how old the last write must be before a file can be moved.
+	MinAgeMs int `yaml:"min_age_ms"   mapstructure:"min_age_ms"`
+	// MaxChecks is how many readiness attempts to make before giving up.
+	MaxChecks int `yaml:"max_checks"   mapstructure:"max_checks"`
+	// MoveRetries is how many times to retry a move that failed because the
+	// file was still locked by another process.
+	MoveRetries int `yaml:"move_retries" mapstructure:"move_retries"`
+}
+
+// Default stability values. They match the behaviour that shipped before
+// stability became configurable.
+const (
+	defaultDebounceMs  = 500
+	defaultWindowMs    = 2000
+	defaultMinAgeMs    = 2000
+	defaultMaxChecks   = 30
+	defaultMoveRetries = 3
+)
+
 // Config is the root configuration structure.
 type Config struct {
-	WatchPaths          []WatchPath        `yaml:"watch_paths"          mapstructure:"watch_paths"`
-	Rules               []Rule             `yaml:"rules"                mapstructure:"rules"`
-	IgnoreExtensions    []string           `yaml:"ignore_extensions"    mapstructure:"ignore_extensions"`
-	FallbackCategory    string             `yaml:"fallback_category"    mapstructure:"fallback_category"`
-	Notifications       NotificationConfig `yaml:"notifications"        mapstructure:"notifications"`
-	PollIntervalSeconds int                `yaml:"poll_interval_seconds" mapstructure:"poll_interval_seconds"`
-	LogLevel            string             `yaml:"log_level"            mapstructure:"log_level"`
-	LogFile             string             `yaml:"log_file"             mapstructure:"log_file"`
+	WatchPaths       []WatchPath        `yaml:"watch_paths"          mapstructure:"watch_paths"`
+	Rules            []Rule             `yaml:"rules"                mapstructure:"rules"`
+	IgnoreExtensions []string           `yaml:"ignore_extensions"    mapstructure:"ignore_extensions"`
+	FallbackCategory string             `yaml:"fallback_category"    mapstructure:"fallback_category"`
+	Notifications    NotificationConfig `yaml:"notifications"        mapstructure:"notifications"`
+	Stability        StabilityConfig    `yaml:"stability"            mapstructure:"stability"`
+	// Deprecated: unused. fsnotify is always used; there is no polling fallback.
+	PollIntervalSeconds int    `yaml:"poll_interval_seconds" mapstructure:"poll_interval_seconds"`
+	LogLevel            string `yaml:"log_level"            mapstructure:"log_level"`
+	LogFile             string `yaml:"log_file"             mapstructure:"log_file"`
 }
 
 // Default returns a sensible default configuration.
@@ -83,7 +114,14 @@ func Default() *Config {
 			".crdownload", ".aria2", ".part", ".download", ".partial",
 			".downloading", ".filepart", ".tmpfile", ".!sync",
 		},
-		FallbackCategory:    "Others",
+		FallbackCategory: "Others",
+		Stability: StabilityConfig{
+			DebounceMs:  defaultDebounceMs,
+			WindowMs:    defaultWindowMs,
+			MinAgeMs:    defaultMinAgeMs,
+			MaxChecks:   defaultMaxChecks,
+			MoveRetries: defaultMoveRetries,
+		},
 		PollIntervalSeconds: 2,
 		LogLevel:            "info",
 		Notifications: NotificationConfig{
@@ -185,12 +223,35 @@ func normalize(cfg *Config) error {
 		}
 		cfg.WatchPaths[i].TargetBase = tb
 	}
+	normalizeStability(&cfg.Stability)
 	shortcuts, err := normalizeShortcuts(cfg.Notifications.Shortcuts)
 	if err != nil {
 		return err
 	}
 	cfg.Notifications.Shortcuts = shortcuts
 	return nil
+}
+
+// normalizeStability replaces non-positive values with their defaults. A config
+// that omits the stability block keeps the values from Default(); this guards
+// against a config that sets them to zero explicitly, which would otherwise
+// disable the debounce and stability window entirely.
+func normalizeStability(s *StabilityConfig) {
+	if s.DebounceMs <= 0 {
+		s.DebounceMs = defaultDebounceMs
+	}
+	if s.WindowMs <= 0 {
+		s.WindowMs = defaultWindowMs
+	}
+	if s.MinAgeMs <= 0 {
+		s.MinAgeMs = defaultMinAgeMs
+	}
+	if s.MaxChecks <= 0 {
+		s.MaxChecks = defaultMaxChecks
+	}
+	if s.MoveRetries <= 0 {
+		s.MoveRetries = defaultMoveRetries
+	}
 }
 
 func normalizeShortcuts(shortcuts []Shortcut) ([]Shortcut, error) {

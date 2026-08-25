@@ -8,7 +8,26 @@ watch_paths:
   - path: ~/Downloads
     target_base: ~/Downloads
 
-# How long (seconds) to wait between polling cycles when fsnotify is unavailable.
+# How long a file must be quiet before it is treated as a finished download and
+# moved. Raise these on a slow disk or a slow connection; every value is in
+# milliseconds and a value of 0 or less falls back to the default shown here.
+stability:
+  # Wait this long after the last filesystem event before looking at a file.
+  debounce_ms: 500
+  # Interval between the two samples compared to decide the file stopped
+  # growing. Also the delay between retries.
+  window_ms: 2000
+  # How old the last write must be before a file may be moved.
+  min_age_ms: 2000
+  # How many *consecutive* checks with no progress to make before giving up.
+  # The counter resets whenever the file grows, so a long download is never
+  # abandoned midway; this only bounds a transfer that has truly stalled.
+  max_checks: 30
+  # How many times to retry a move that failed because another process still
+  # held the file open. Retries back off exponentially from window_ms.
+  move_retries: 3
+
+# Deprecated: unused. fsnotify is always used; there is no polling fallback.
 poll_interval_seconds: 2
 
 # Classification rules: map categories to lists of file extensions.
@@ -41,6 +60,9 @@ rules:
                  .vue, .php]
 
 # Extensions that are NEVER moved (incomplete/temporary download artifacts).
+# The watcher skips these on sight, on top of a built-in floor of browser
+# extensions (.crdownload, .part, .download, .opdownload, .partial, .tmp) that
+# applies even if you empty this list.
 ignore_extensions:
   - .tmp
   - .!qB

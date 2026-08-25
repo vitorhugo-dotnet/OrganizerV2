@@ -1,9 +1,7 @@
 package organizer
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -22,7 +20,10 @@ type MoveResult struct {
 	Category    string
 	Skipped     bool
 	SkipReason  string
-	Err         error
+	// Retryable is set with Skipped when the move failed only because another
+	// process still held the file open. The caller may try the same path again.
+	Retryable bool
+	Err       error
 }
 
 // Organizer classifies and moves files according to configured rules.
@@ -69,8 +70,13 @@ func (o *Organizer) ProcessFile(srcPath string) MoveResult {
 	}
 
 	if err := moveFile(srcPath, dest); err != nil {
-		if errors.Is(err, os.ErrPermission) {
-			return MoveResult{Source: srcPath, Skipped: true, SkipReason: "permission denied (file in use)"}
+		if isLocked(err) {
+			return MoveResult{
+				Source:     srcPath,
+				Skipped:    true,
+				Retryable:  true,
+				SkipReason: fmt.Sprintf("file in use: %v", err),
+			}
 		}
 		return MoveResult{Source: srcPath, Err: fmt.Errorf("move: %w", err)}
 	}
@@ -144,26 +150,12 @@ func moveFile(src, dst string) error {
 	return copyAndDelete(src, dst)
 }
 
+// copyAndDelete implements a cross-device move. It delegates to
+// pathutil.CopyFile, which creates the destination with O_EXCL and so refuses
+// to overwrite a file that appeared after ResolveDuplicate picked the name.
 func copyAndDelete(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return fmt.Errorf("open source: %w", err)
-	}
-	defer in.Close()
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return fmt.Errorf("create dest: %w", err)
-	}
-
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
-		os.Remove(dst)
-		return fmt.Errorf("copy: %w", err)
-	}
-	if err := out.Close(); err != nil {
-		os.Remove(dst)
-		return fmt.Errorf("close dest: %w", err)
+	if err := pathutil.CopyFile(src, dst); err != nil {
+		return err
 	}
 	return os.Remove(src)
 }
