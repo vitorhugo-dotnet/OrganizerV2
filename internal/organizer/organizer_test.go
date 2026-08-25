@@ -1,6 +1,8 @@
 package organizer
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -138,5 +140,79 @@ func TestScanDir(t *testing.T) {
 	}
 	if skipped != 1 {
 		t.Errorf("expected 1 skipped, got %d", skipped)
+	}
+}
+
+func TestIsLockedRecognisesPermissionErrors(t *testing.T) {
+	if !isLocked(os.ErrPermission) {
+		t.Error("os.ErrPermission should count as locked")
+	}
+	if !isLocked(fmt.Errorf("wrapped: %w", os.ErrPermission)) {
+		t.Error("a wrapped permission error should count as locked")
+	}
+	if isLocked(os.ErrNotExist) {
+		t.Error("a missing file is not a lock")
+	}
+	if isLocked(errors.New("some other failure")) {
+		t.Error("an unrelated error is not a lock")
+	}
+}
+
+// TestCopyAndDeleteDoesNotTruncateDestination covers the cross-device fallback.
+// It used to call os.Create, which truncates, so a file that appeared between
+// ResolveDuplicate picking the name and the copy running would be destroyed.
+func TestCopyAndDeleteDoesNotTruncateDestination(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.bin")
+	dst := filepath.Join(dir, "dst.bin")
+
+	if err := os.WriteFile(src, []byte("new data"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dst, []byte("precious existing data"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := copyAndDelete(src, dst); err == nil {
+		t.Fatal("expected copyAndDelete to refuse an existing destination")
+	}
+
+	got, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "precious existing data" {
+		t.Errorf("destination was clobbered, contains %q", got)
+	}
+	if _, err := os.Stat(src); err != nil {
+		t.Errorf("source must survive a failed move: %v", err)
+	}
+}
+
+func TestCopyAndDeleteMovesToFreeDestination(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.bin")
+	dst := filepath.Join(dir, "sub", "dst.bin")
+
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(src, []byte("payload"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := copyAndDelete(src, dst); err != nil {
+		t.Fatalf("copyAndDelete: %v", err)
+	}
+
+	got, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "payload" {
+		t.Errorf("destination contains %q, want %q", got, "payload")
+	}
+	if _, err := os.Stat(src); !os.IsNotExist(err) {
+		t.Errorf("source should be removed after a successful move, stat gave %v", err)
 	}
 }

@@ -184,3 +184,70 @@ func TestExpandHomePath(t *testing.T) {
 		t.Errorf("expected %s, got %s", expected, result)
 	}
 }
+
+func TestDefaultStabilityValues(t *testing.T) {
+	s := Default().Stability
+	if s.DebounceMs != defaultDebounceMs {
+		t.Errorf("DebounceMs = %d, want %d", s.DebounceMs, defaultDebounceMs)
+	}
+	if s.WindowMs != defaultWindowMs {
+		t.Errorf("WindowMs = %d, want %d", s.WindowMs, defaultWindowMs)
+	}
+	if s.MinAgeMs != defaultMinAgeMs {
+		t.Errorf("MinAgeMs = %d, want %d", s.MinAgeMs, defaultMinAgeMs)
+	}
+	if s.MaxChecks != defaultMaxChecks {
+		t.Errorf("MaxChecks = %d, want %d", s.MaxChecks, defaultMaxChecks)
+	}
+	if s.MoveRetries != defaultMoveRetries {
+		t.Errorf("MoveRetries = %d, want %d", s.MoveRetries, defaultMoveRetries)
+	}
+}
+
+// TestNormalizeStabilityClampsNonPositive guards the case a user writes zeros
+// into the config, which would otherwise disable the debounce and the stability
+// window and move partial downloads again.
+func TestNormalizeStabilityClampsNonPositive(t *testing.T) {
+	s := StabilityConfig{DebounceMs: 0, WindowMs: -1, MinAgeMs: 0, MaxChecks: -5, MoveRetries: 0}
+	normalizeStability(&s)
+
+	if s.DebounceMs != defaultDebounceMs || s.WindowMs != defaultWindowMs ||
+		s.MinAgeMs != defaultMinAgeMs || s.MaxChecks != defaultMaxChecks ||
+		s.MoveRetries != defaultMoveRetries {
+		t.Errorf("non-positive values were not clamped to defaults: %+v", s)
+	}
+}
+
+func TestNormalizeStabilityKeepsPositiveValues(t *testing.T) {
+	s := StabilityConfig{DebounceMs: 1, WindowMs: 2, MinAgeMs: 3, MaxChecks: 4, MoveRetries: 5}
+	normalizeStability(&s)
+
+	if s.DebounceMs != 1 || s.WindowMs != 2 || s.MinAgeMs != 3 || s.MaxChecks != 4 || s.MoveRetries != 5 {
+		t.Errorf("positive values must be preserved, got %+v", s)
+	}
+}
+
+func TestLoadReadsStabilityBlock(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	body := "watch_paths:\n  - path: " + dir + "\n    target_base: " + dir +
+		"\nstability:\n  window_ms: 7500\n  max_checks: 0\n"
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Stability.WindowMs != 7500 {
+		t.Errorf("WindowMs = %d, want 7500", cfg.Stability.WindowMs)
+	}
+	// Omitted keys keep their defaults; an explicit 0 is clamped back.
+	if cfg.Stability.DebounceMs != defaultDebounceMs {
+		t.Errorf("omitted DebounceMs = %d, want %d", cfg.Stability.DebounceMs, defaultDebounceMs)
+	}
+	if cfg.Stability.MaxChecks != defaultMaxChecks {
+		t.Errorf("zeroed MaxChecks = %d, want %d", cfg.Stability.MaxChecks, defaultMaxChecks)
+	}
+}
